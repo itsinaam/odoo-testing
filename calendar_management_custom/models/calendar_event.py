@@ -139,18 +139,7 @@ class CalendarManagementEvent(models.Model):
                 continue
 
             subject = _('Event Reminder: %s') % (rec.name,)
-            body = _(
-                '<p>This is a reminder for the event <b>%(title)s</b>.</p>'
-                '<ul>'
-                '<li><b>Start:</b> %(start)s</li>'
-                '<li><b>End:</b> %(end)s</li>'
-                '<li><b>Location:</b> %(location)s</li>'
-                '</ul>',
-                title=rec.name,
-                start=fields.Datetime.to_string(rec.start_datetime) if rec.start_datetime else '',
-                end=fields.Datetime.to_string(rec.end_datetime) if rec.end_datetime else '',
-                location=rec.location or _('Not available'),
-            )
+            body = rec._build_event_reminder_email_body()
 
             rec.message_post(
                 subject=subject,
@@ -159,6 +148,84 @@ class CalendarManagementEvent(models.Model):
                 message_type='email',
                 subtype_xmlid='mail.mt_note',
             )
+
+    def _build_event_reminder_email_body(self):
+        """Build the HTML body for reminder emails.
+
+        Also includes a short summary of recent chatter/input messages when available.
+        """
+        self.ensure_one()
+
+        summary = self._get_recent_messages_summary(max_messages=10, max_chars=400)
+        summary_html = ''
+        if summary:
+            summary_html = _(
+                '<p><b>Recent notes summary:</b> %(summary)s</p>',
+                summary=summary,
+            )
+
+        return _(
+            '<p>This is a reminder for the event <b>%(title)s</b>.</p>'
+            '<ul>'
+            '<li><b>Start:</b> %(start)s</li>'
+            '<li><b>End:</b> %(end)s</li>'
+            '<li><b>Location:</b> %(location)s</li>'
+            '</ul>'
+            '%(summary_html)s',
+            title=self.name,
+            start=fields.Datetime.to_string(self.start_datetime) if self.start_datetime else '',
+            end=fields.Datetime.to_string(self.end_datetime) if self.end_datetime else '',
+            location=self.location or _('Not available'),
+            summary_html=summary_html,
+        )
+
+    def _get_recent_messages_summary(self, max_messages=10, max_chars=400):
+        """Summarize recent chatter/input messages for this event.
+
+        This is a lightweight, deterministic summarizer (no external AI calls):
+        - takes the last `max_messages` messages
+        - extracts plain text
+        - de-duplicates lines
+        - truncates to `max_chars`
+
+        Returns an empty string if no usable content is available.
+        """
+        self.ensure_one()
+
+        # message_ids is available because the model inherits mail.thread in this module.
+        messages = self.message_ids.sorted('date')[-max_messages:]
+        if not messages:
+            return ''
+
+        parts = []
+        for msg in messages:
+            # Prefer body (HTML) but fall back to subject.
+            text = (msg.body or '')
+            text = self.env['mail.render.mixin']._render_template_inline(text, {}) if False else text
+            # Convert HTML to text using Odoo helper.
+            text = self.env['ir.qweb']._get_text(text) if hasattr(self.env['ir.qweb'], '_get_text') else text
+            text = (text or '').strip()
+            if not text:
+                text = (msg.subject or '').strip()
+            if text:
+                parts.append(text)
+
+        if not parts:
+            return ''
+
+        # De-duplicate while preserving order.
+        seen = set()
+        deduped = []
+        for p in parts:
+            key = ' '.join(p.split())
+            if key and key not in seen:
+                seen.add(key)
+                deduped.append(key)
+
+        summary = ' | '.join(deduped)
+        if len(summary) > max_chars:
+            summary = summary[: max_chars - 1].rstrip() + '…'
+        return summary
 
     @api.model
     def _cron_send_event_reminders(self):

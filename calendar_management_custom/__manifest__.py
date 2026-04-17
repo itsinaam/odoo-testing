@@ -3,7 +3,7 @@
     'name': 'Calendar Management Custom',
     'version': '19.0',
     'category': 'Productivity',
-    'summary': 'Custom calendar management system with events, reminders, and status-based colors',
+    'summary': 'Custom calendar management system with events, reminders, status-based colors, and message summarization',
     'description': """
 Calendar Management Custom
 ==========================
@@ -15,6 +15,7 @@ A simple calendar management system providing:
 - Status-based color coding in calendar
 - Reminder notifications (internal + optional email)
 - Organizer defaults to current user
+- NEW: Summarize chatter/input messages into a concise summary
 """,
     'author': 'Your Company',
     'website': 'https://www.yourcompany.com',

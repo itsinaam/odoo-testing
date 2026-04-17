@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_calendar_management_event_tree" model="ir.ui.view">
+        <field name="name">calendar.management.event.tree</field>
+        <field name="model">calendar.management.event</field>
+        <field name="arch" type="xml">
+            <tree string="Events" default_order="start_datetime desc">
+                <field name="name"/>
+                <field name="status"/>
+                <field name="start_datetime"/>
+                <field name="end_datetime"/>
+                <field name="organizer_id"/>
+                <field name="location"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_calendar_management_event_form" model="ir.ui.view">
+        <field name="name">calendar.management.event.form</field>
+        <field name="model">calendar.management.event</field>
+        <field name="arch" type="xml">
+            <form string="Event">
+                <header>
+                    <button name="action_set_draft" type="object" string="Set to Draft" class="btn-secondary" invisible="status == 'draft'"/>
+                    <button name="action_confirm" type="object" string="Confirm" class="btn-primary" invisible="status != 'draft'"/>
+                    <button name="action_done" type="object" string="Mark Done" class="btn-primary" invisible="status not in ('confirmed',)"/>
+                    <button name="action_cancel" type="object" string="Cancel" class="btn-secondary" invisible="status in ('cancelled','done')"/>
+                    <field name="status" widget="statusbar" statusbar_visible="draft,confirmed,done,cancelled"/>
+                </header>
+
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="organizer_id"/>
+                    </group>
+
+                    <group>
+                        <field name="start_datetime"/>
+                        <field name="end_datetime"/>
+                    </group>
+
+                    <group>
+                        <field name="location"/>
+                        <field name="attendee_ids" widget="many2many_tags"/>
+                    </group>
+
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Reminders">
+                            <group>
+                                <field name="reminder_enabled"/>
+                                <field name="reminder_minutes" invisible="not reminder_enabled"/>
+                                <field name="reminder_type" invisible="not reminder_enabled"/>
+                                <field name="reminder_sent" readonly="1" invisible="not reminder_enabled"/>
+                            </group>
+                        </page>
+                        <page string="Chatter">
+                            <field name="message_follower_ids"/>
+                            <field name="activity_ids"/>
+                            <field name="message_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Calendar View -->
+    <record id="view_calendar_management_event_calendar" model="ir.ui.view">
+        <field name="name">calendar.management.event.calendar</field>
+        <field name="model">calendar.management.event</field>
+        <field name="arch" type="xml">
+            <calendar
+                string="Events"
+                date_start="start_datetime"
+                date_stop="end_datetime"
+                color="color"
+                quick_add="false"
+            >
+                <field name="name"/>
+                <field name="status"/>
+                <field name="organizer_id"/>
+                <field name="location"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_calendar_management_event_search" model="ir.ui.view">
+        <field name="name">calendar.management.event.search</field>
+        <field name="model">calendar.management.event</field>
+        <field name="arch" type="xml">
+            <search string="Search Events">
+                <field name="name" string="Title"/>
+                <field name="organizer_id"/>
+                <field name="attendee_ids"/>
+                <field name="location"/>
+
+                <filter string="Draft" name="status_draft" domain="[('status','=','draft')]"/>
+                <filter string="Confirmed" name="status_confirmed" domain="[('status','=','confirmed')]"/>
+                <filter string="Done" name="status_done" domain="[('status','=','done')]"/>
+                <filter string="Cancelled" name="status_cancelled" domain="[('status','=','cancelled')]"/>
+
+                <separator/>
+
+                <filter string="Start: Today" name="start_today" domain="[('start_datetime','&gt;=', context_today().strftime('%%Y-%%m-%%d 00:00:00')), ('start_datetime','&lt;=', context_today().strftime('%%Y-%%m-%%d 23:59:59'))]"/>
+                <filter string="Start: Next 7 Days" name="start_next_7" domain="[('start_datetime','&gt;=', context_today().strftime('%%Y-%%m-%%d 00:00:00')), ('start_datetime','&lt;=', (context_today() + relativedelta(days=7)).strftime('%%Y-%%m-%%d 23:59:59'))]"/>
+
+                <group expand="0" string="Group By">
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="Organizer" name="group_organizer" context="{'group_by': 'organizer_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_calendar_management_event" model="ir.actions.act_window">
+        <field name="name">Events</field>
+        <field name="res_model">calendar.management.event</field>
+        <field name="view_mode">calendar,tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first event
+            </p>
+        </field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_calendar_management_root" name="Calendar Management" sequence="10"/>
+    <menuitem id="menu_calendar_management_events" name="Events" parent="menu_calendar_management_root" action="action_calendar_management_event" sequence="10"/>
+</odoo>
